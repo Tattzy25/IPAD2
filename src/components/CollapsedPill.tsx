@@ -1,9 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Maximize2 } from 'lucide-react';
-
-const IPAD_IMAGE_URL =
-  'https://pub-9b2398b039ea4fe288988ee883a0fa48.r2.dev/815ebaa3-90b6-4a70-8f2a-4347dc10d1c3.png';
+import { Sparkles, Radio } from 'lucide-react';
 
 export const CollapsedPill: React.FC = () => {
   return (
@@ -15,35 +12,33 @@ export const CollapsedPill: React.FC = () => {
       transition={{ duration: 0.18, ease: 'easeInOut' }}
       className="w-full h-full flex items-center justify-between z-20"
     >
-      {/* Left: Circle logo slot with the same iPad image & title */}
+      {/* Left: Circle logo slot with pulsing live dot & live assistant label */}
       <div className="flex items-center gap-2.5 pl-0.5">
         <div
           id="pill-logo-slot"
-          className="w-8 h-8 rounded-full overflow-hidden border border-white/30 flex items-center justify-center shadow-inner flex-shrink-0 bg-black"
-          title="Logo"
+          className="w-7 h-7 rounded-full overflow-hidden border border-white/20 flex items-center justify-center shadow-inner flex-shrink-0 bg-neutral-900 text-white"
+          title="Live Shopping Assistant"
         >
-          <img
-            src={IPAD_IMAGE_URL}
-            alt="Logo"
-            referrerPolicy="no-referrer"
-            className="w-full h-full object-cover rounded-full select-none"
-            draggable={false}
-          />
+          <Sparkles className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
         </div>
-        <span className="text-[12px] text-white/80 font-medium uppercase tracking-[0.15em] group-hover:text-white transition-colors">
-          2027 iPad
-        </span>
+        <div className="flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+          <span className="text-[11.5px] text-white/90 font-semibold tracking-wide group-hover:text-white transition-colors">
+            Live Shopping
+          </span>
+        </div>
       </div>
 
       {/* Right: Expand cue */}
-      <div className="flex items-center gap-1 text-white/50 group-hover:text-white transition-colors">
-        <span className="text-[10px] uppercase tracking-widest opacity-70">
-          Open
+      <div className="flex items-center gap-1 text-white/50 group-hover:text-white transition-colors pr-1">
+        <Radio className="w-3 h-3 text-emerald-400" />
+        <span className="text-[10px] uppercase font-bold tracking-widest text-white/70">
+          Talk
         </span>
-        <Maximize2 className="w-3.5 h-3.5" />
       </div>
     </motion.div>
   );
 };
 export default CollapsedPill;
+
 

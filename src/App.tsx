@@ -93,12 +93,6 @@ export default function App() {
     localStorage.setItem('visualizer_idle_color', color);
   };
 
-  // Preload the iPad image on mount for instant zero-latency rendering
-  useEffect(() => {
-    const img = new Image();
-    img.src = IPAD_IMAGE_URL;
-  }, []);
-
   // Allow closing with Escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -122,11 +116,19 @@ export default function App() {
   return (
     <div
       id="app-root"
-      className="h-screen w-full bg-white text-white flex flex-col items-center justify-end pb-4 px-4 select-none overflow-hidden relative font-sans"
-      onClick={() => {
-        if (isOpen) setIsOpen(false);
-      }}
+      className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999999] pointer-events-none flex flex-col items-center justify-end select-none font-sans"
     >
+      {/* Subtle backdrop when open to dismiss on outside click */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 pointer-events-auto bg-black/10 backdrop-blur-[1px] -z-10"
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsOpen(false);
+          }}
+        />
+      )}
+
       {/* Morphing high-gloss black container: compact bubble to long status pill */}
       <motion.div
         id="morphing-device-frame"
@@ -140,7 +142,7 @@ export default function App() {
           if (!isOpen) setIsOpen(true);
         }}
         transition={smoothTransition}
-        className={`relative flex items-center justify-between transition-all overflow-hidden bg-black ${
+        className={`pointer-events-auto relative flex items-center justify-between transition-all overflow-hidden bg-black ${
           isOpen
             ? showProducts
               ? 'w-[min(94vw,760px)] h-[440px] sm:h-[460px] rounded-[36px] cursor-default p-[3px] border border-white/20 shadow-[0_24px_60px_rgba(0,0,0,0.95),inset_0_1px_1.5px_rgba(255,255,255,0.4)] ring-1 ring-white/10'
