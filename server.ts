@@ -7,6 +7,22 @@ dotenv.config();
 const app = express();
 const PORT = process.env.NODE_ENV === 'production' ? (process.env.PORT || 3000) : 3000;
 
+// Bulletproof CORS: Handles preflights immediately before any middleware
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    (req.headers['access-control-request-headers'] as string) ||
+      'Content-Type, Authorization, x-shop-domain, x-domain, Accept, Origin, X-Requested-With'
+  );
+  res.setHeader('Access-Control-Max-Age', '86400');
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
+  }
+  next();
+});
+
 app.use(express.json());
 
 // UCP Discovery Endpoint

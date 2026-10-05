@@ -1,0 +1,35 @@
+{% comment %}
+  ==============================================================================
+  Live Shopping Assistant — Shopify Theme App Extension Block
+  
+  Install in your Shopify App CLI project:
+    extensions/<extension-name>/blocks/shopping-agent.liquid
+  ==============================================================================
+{% endcomment %}
+
+<div 
+  id="live-commerce-root"
+  data-backend-url="{{ block.settings.backend_url }}"
+  data-shop-domain="{{ shop.permanent_domain }}"
+></div>
+
+{{ 'shopping-agent.css' | asset_url | stylesheet_tag }}
+<script src="{{ 'shopping-agent.js' | asset_url }}" defer></script>
+
+{% schema %}
+{
+  "name": "Live Shopping Assistant",
+  "target": "body",
+  "stylesheet": "shopping-agent.css",
+  "javascript": "shopping-agent.js",
+  "settings": [
+    {
+      "type": "text",
+      "id": "backend_url",
+      "label": "Backend URL (Vercel)",
+      "info": "Your deployed Vercel URL (e.g. https://your-project.vercel.app). Leave empty if served from the same domain.",
+      "default": "https://your-project.vercel.app"
+    }
+  ]
+}
+{% endschema %}

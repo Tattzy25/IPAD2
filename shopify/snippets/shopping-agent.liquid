@@ -1,0 +1,18 @@
+{% comment %}
+  ==============================================================================
+  Live Shopping Assistant — Shopify Theme Snippet
+  
+  Copy to: snippets/shopping-agent.liquid
+  Then in theme.liquid before </body> add:
+    {% render 'shopping-agent', backend_url: 'https://your-project.vercel.app' %}
+  ==============================================================================
+{% endcomment %}
+
+<div 
+  id="live-commerce-root"
+  data-backend-url="{{ backend_url | default: 'https://your-project.vercel.app' }}"
+  data-shop-domain="{{ shop.permanent_domain }}"
+></div>
+
+{{ 'shopping-agent.css' | asset_url | stylesheet_tag }}
+<script src="{{ 'shopping-agent.js' | asset_url }}" defer></script>

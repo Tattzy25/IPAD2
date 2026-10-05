@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { BASE_CONTOUR } from '../components/AudioVisualizer';
 import { discoverStoreDomain } from '../services/discovery';
+import { getBackendUrl } from '../services/backend';
 
 export type AgentStatus = 'idle' | 'connecting' | 'connected' | 'error';
 
@@ -117,7 +118,8 @@ export function useRealtimeAgent(options: UseRealtimeAgentOptions = {}) {
       searchParams.get('domain') ||
       discoveredDomain;
 
-    const res = await fetch('/api/realtime/client_secrets', {
+    const backendUrl = getBackendUrl();
+    const res = await fetch(`${backendUrl}/api/realtime/client_secrets`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
