@@ -6,9 +6,6 @@ import { SettingsModal } from './components/SettingsModal';
 import { useRealtimeAgent } from './hooks/useRealtimeAgent';
 import { routeResult } from './components/liveCommerce/route';
 
-const IPAD_IMAGE_URL =
-  'https://pub-9b2398b039ea4fe288988ee883a0fa48.r2.dev/815ebaa3-90b6-4a70-8f2a-4347dc10d1c3.png';
-
 export default function App() {
   const [isOpen, setIsOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);

@@ -110,12 +110,15 @@ export function useRealtimeAgent(options: UseRealtimeAgentOptions = {}) {
       return;
     }
 
-    // 2. Obtain client secret with dynamic domain discovered from .well-known/ucp
+    // 2. Obtain client secret with dynamic domain discovered from shopify / ucp
     const searchParams = new URLSearchParams(window.location.search);
+    const rootEl = document.getElementById('live-commerce-root') || document.getElementById('root');
+    const shopAttr = rootEl?.getAttribute('data-shop-domain');
     const discoveredDomain = await discoverStoreDomain();
     const clientDomain =
       searchParams.get('shop_domain') ||
       searchParams.get('domain') ||
+      shopAttr ||
       discoveredDomain;
 
     const backendUrl = getBackendUrl();

@@ -22,6 +22,8 @@ export default defineConfig(() => {
       outDir: 'dist',
       rollupOptions: {
         output: {
+          format: 'iife',
+          name: 'LiveShoppingAgent',
           entryFileNames: 'assets/shopping-agent.js',
           chunkFileNames: 'assets/[name].js',
           assetFileNames: (assetInfo) => {

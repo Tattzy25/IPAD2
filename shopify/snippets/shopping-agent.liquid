@@ -4,13 +4,13 @@
   
   Copy to: snippets/shopping-agent.liquid
   Then in theme.liquid before </body> add:
-    {% render 'shopping-agent', backend_url: 'https://your-project.vercel.app' %}
+    {% render 'shopping-agent' %}
   ==============================================================================
 {% endcomment %}
 
 <div 
   id="live-commerce-root"
-  data-backend-url="{{ backend_url | default: 'https://your-project.vercel.app' }}"
+  data-backend-url="{{ backend_url | default: 'https://ttk.facetimefy.com' }}"
   data-shop-domain="{{ shop.permanent_domain }}"
 ></div>
 
