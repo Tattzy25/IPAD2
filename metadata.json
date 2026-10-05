@@ -1,0 +1,6 @@
+{
+  "name": "2027 iPad Frame",
+  "description": "A high-gloss black 2027 iPad UI frame with seamless bubble transition.",
+  "requestFramePermissions": ["camera", "microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
