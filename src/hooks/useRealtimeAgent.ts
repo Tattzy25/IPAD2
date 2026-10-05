@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { BASE_CONTOUR } from '../components/AudioVisualizer';
+import { discoverStoreDomain } from '../services/discovery';
 
 export type AgentStatus = 'idle' | 'connecting' | 'connected' | 'error';
 
@@ -25,6 +26,7 @@ export function useRealtimeAgent(options: UseRealtimeAgentOptions = {}) {
   const remoteAnalyserRef = useRef<AnalyserNode | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const audioElementRef = useRef<HTMLAudioElement | null>(null);
+  const fallbackTimerRef = useRef<any>(null);
 
   const onEventRef = useRef(options.onEvent);
   onEventRef.current = options.onEvent;
@@ -59,6 +61,10 @@ export function useRealtimeAgent(options: UseRealtimeAgentOptions = {}) {
   }, []);
 
   const disconnect = useCallback(() => {
+    if (fallbackTimerRef.current) {
+      clearTimeout(fallbackTimerRef.current);
+      fallbackTimerRef.current = null;
+    }
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
       animationFrameRef.current = null;
@@ -103,15 +109,24 @@ export function useRealtimeAgent(options: UseRealtimeAgentOptions = {}) {
       return;
     }
 
-    // 2. Obtain client secret
+    // 2. Obtain client secret with dynamic domain discovered from .well-known/ucp
+    const searchParams = new URLSearchParams(window.location.search);
+    const discoveredDomain = await discoverStoreDomain();
+    const clientDomain =
+      searchParams.get('shop_domain') ||
+      searchParams.get('domain') ||
+      discoveredDomain;
+
     const res = await fetch('/api/realtime/client_secrets', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
+      body: JSON.stringify({ domain: clientDomain }),
     });
 
     const sessionData = await res.json();
+    const dynamicDomain = sessionData.domain || clientDomain || 'store.anigok.com';
     const ephemeralKey =
       sessionData.client_secret?.value || sessionData.value || sessionData.key;
 
@@ -166,9 +181,8 @@ export function useRealtimeAgent(options: UseRealtimeAgentOptions = {}) {
 
     dc.onopen = () => {
       console.log('[OpenAI Realtime DataChannel Opened]');
-      const domain = window.location.hostname || 'store.anigok.com';
-      const kickoffPrompt = `DO NOT START TALKING YET THIS IS THE INITIAL KICKOFF FOR YOUR LIVE SESSION START , CALL YOUR MCP TOOL search_catalog WITH ${domain} GRAB THE COLLECTIONS AND DISPLAY THE COLLECTIONS ALL OF THEM .. JUST COLLECTION IMAGE AND NAME LABLE, AS SOON AS THATS LOADED YOUR SESSION WITH START THE LIVE VOICE....`;
-      const responseInstructions = `DO NOT SPEAK YET. Execute your MCP tool search_catalog with shop_domain='${domain}' to grab and display all collections. Do not generate audio or speech until collections are rendered.`;
+      const kickoffPrompt = `DO NOT START TALKING YET THIS IS THE INITIAL KICKOFF FOR YOUR LIVE SESSION START , CALL YOUR MCP TOOL search_catalog WITH ${dynamicDomain} GRAB THE COLLECTIONS AND DISPLAY THE COLLECTIONS ALL OF THEM .. JUST COLLECTION IMAGE AND NAME LABLE. IF THE STORE HAS NO COLLECTIONS, IMMEDIATELY DISPLAY THE FIRST 4 PRODUCTS INSTEAD. AS SOON AS THATS LOADED YOUR SESSION WITH START THE LIVE VOICE....`;
+      const responseInstructions = `DO NOT SPEAK YET. Call your MCP tool search_catalog with shop_domain='${dynamicDomain}' to grab and display all collections. If no collections exist, display the first 4 products instead. Do not generate audio or speech until collections or products are rendered.`;
 
       dc.send(
         JSON.stringify({
@@ -194,6 +208,32 @@ export function useRealtimeAgent(options: UseRealtimeAgentOptions = {}) {
           },
         })
       );
+
+      // 15-second safety timer so the customer and agent are never held indefinitely
+      fallbackTimerRef.current = setTimeout(() => {
+        if (dc.readyState === 'open') {
+          dc.send(
+            JSON.stringify({
+              type: 'conversation.item.create',
+              item: {
+                type: 'message',
+                role: 'user',
+                content: [
+                  {
+                    type: 'input_text',
+                    text: `Display the first 4 products from ${dynamicDomain} now.`,
+                  },
+                ],
+              },
+            })
+          );
+          dc.send(
+            JSON.stringify({
+              type: 'response.create',
+            })
+          );
+        }
+      }, 15000);
 
       if (onOpenRef.current) {
         onOpenRef.current();

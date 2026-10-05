@@ -174,19 +174,37 @@ export const IpadFrame: React.FC<IpadFrameProps> = ({
           </button>
         </div>
 
-        {/* High-Gloss Connection Overlay centered directly across the bar */}
+        {/* Connection Overlay with immediate Cancel Call button */}
         {isConnecting && (
           <div
             id="connection-hold-overlay"
-            className="absolute inset-0 z-40 bg-black flex items-center justify-center gap-2.5 text-white rounded-full"
+            className="absolute inset-0 z-40 bg-black flex items-center justify-between px-4 sm:px-6 text-white rounded-full"
           >
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-            </span>
-            <span className="text-[12px] font-medium tracking-wide text-white/90">
-              Connecting...
-            </span>
+            <div className="flex items-center gap-2.5">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+              </span>
+              <span className="text-[12px] font-medium tracking-wide text-white/90">
+                Connecting...
+              </span>
+            </div>
+
+            {/* Cancel Call Button */}
+            <button
+              id="cancel-connecting-btn"
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDisconnect();
+              }}
+              className="px-2.5 py-1 rounded-full text-white/70 hover:text-white hover:bg-white/10 active:scale-95 transition-all cursor-pointer flex items-center gap-1.5 text-xs border border-white/15"
+              title="Cancel Call"
+              aria-label="Cancel Call"
+            >
+              <span className="text-[11px] font-medium text-white/80">Cancel</span>
+              <X className="w-3.5 h-3.5 text-white/70" />
+            </button>
           </div>
         )}
       </div>

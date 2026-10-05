@@ -9,18 +9,42 @@ const PORT = process.env.NODE_ENV === 'production' ? (process.env.PORT || 3000) 
 
 app.use(express.json());
 
+// UCP Discovery Endpoint
+app.get(['/.well-known/ucp', '/.well-known/ucp.json'], async (req, res) => {
+  const queryDomain = (req.query.domain as string) || (req.query.shop_domain as string);
+  const host = req.headers.host;
+  const validHost = host && !host.includes('run.app') && !host.includes('localhost') ? host : null;
+  const domain = queryDomain || validHost || process.env.STORE_DOMAIN || 'store.anigok.com';
+
+  res.json({
+    ucp_version: '2024-11-01',
+    domain,
+    shop_domain: domain,
+    store_name: domain.split('.')[0] || 'Store',
+    mcp_servers: {
+      master: 'https://master-group-mcp.anigok.com/mcp',
+      virtual_tryon: 'https://virtual-try-on.anigok.com/mcp',
+    },
+    profile_url: process.env.AGENT_PROFILE_URL || `https://${domain}/api/ucp/profile`,
+  });
+});
+
 // Endpoint for OpenAI Realtime client secrets
 app.post(['/api/realtime/client_secrets', '/api/session'], async (req, res) => {
-  const domain = req.headers.host || 'store.anigok.com';
+  const queryDomain = (req.query.domain as string) || (req.query.shop_domain as string);
+  const bodyDomain = req.body?.domain || req.body?.shop_domain;
+  const headerDomain = (req.headers['x-shop-domain'] as string) || (req.headers['x-domain'] as string);
+  const host = req.headers.host;
+  const validHost = host && !host.includes('run.app') && !host.includes('localhost') ? host : null;
+  const domain = queryDomain || bodyDomain || headerDomain || validHost || process.env.STORE_DOMAIN || 'store.anigok.com';
   const profileUrl = process.env.AGENT_PROFILE_URL || `https://${domain}/api/ucp/profile`;
   const apiKey = process.env.OPENAI_API_KEY;
 
-  const instructions = `CRITICAL SESSION KICKOFF RULE:
+  const instructions = `CRITICAL SESSION START RULE:
 ABSOLUTELY DO NOT SPEAK UPON CONNECTING. DO NOT GREET THE USER FIRST. DO NOT SAY "What can I help you shop for today" OR ANY WORDS.
-You must remain 100% SILENT upon connecting.
-The session begins with a silent initial kickoff: wait for the kickoff message to call search_catalog with the domain.
-You must execute the search_catalog tool call first to fetch all collections.
-DO NOT speak your live voice greeting until collections have loaded and rendered on screen.
+You must remain 100% SILENT until store collections or products are rendered.
+Immediately call your MCP tool search_catalog with shop_domain="${domain}" to fetch and display all collections (image and name label only). If the store has no collections, immediately display the first 4 products instead.
+DO NOT speak your live voice greeting until the collections or products are loaded and rendered on screen.
 
 You are the senior, friendly, and high-converting E-commerce shopping assistant for ${domain}. Never describe or narrate image URLs or long item descriptions. Speak quickly and warmly; your tone is humble, knowledgeable, and never pushy or sales-driven.
 
@@ -354,7 +378,7 @@ Parameters:
   });
 
   const data = await response.json();
-  res.status(response.status).json(data);
+  res.status(response.status).json({ ...data, domain });
 });
 
 async function startServer() {
