@@ -99,7 +99,7 @@ const badgeTone = (p: Product): 'sale' | 'new' | 'stock' | undefined =>
 const LiveCommerce = forwardRef<LiveCommerceHandle, LiveCommerceProps>(function LiveCommerce(
   { onIntent, sessionActive = true, emitNavigationIntents = false, priceUnit = 'auto', className }, ref,
 ) {
-  const [stage, setStage] = useState<Stage>('discovery');
+  const [stage, setStage] = useState<Stage>('idle');
   const [products, setProducts] = useState<Product[]>([]);
   const [page, setPage] = useState(0);
   const [minimized, setMinimized] = useState(false);
@@ -139,7 +139,7 @@ const LiveCommerce = forwardRef<LiveCommerceHandle, LiveCommerceProps>(function 
   /* call ended → commerce clears itself */
   useEffect(() => {
     if (!sessionActive) {
-      setStage('discovery'); setProducts([]); setPage(0); setMinimized(false); setActive(null);
+      setStage('idle'); setProducts([]); setPage(0); setMinimized(false); setActive(null);
       setSelections({}); setShowAll({}); setCart(null); setCheckout(null); setOrder(null);
       setPendingAdd(false); lastRaw.current = null;
     }
@@ -147,8 +147,8 @@ const LiveCommerce = forwardRef<LiveCommerceHandle, LiveCommerceProps>(function 
 
   const backFrom = useCallback((s: Stage): Stage => {
     if (s === 'options') return 'detail';
-    return 'discovery';
-  }, []);
+    return products.length > 0 ? 'discovery' : 'idle';
+  }, [products.length]);
 
   /* ── data in ─────────────────────────────────────────────────────────── */
   const ingest = useCallback((raw: Raw, hint?: { view?: View }): RoutedResult => {
@@ -215,14 +215,14 @@ const LiveCommerce = forwardRef<LiveCommerceHandle, LiveCommerceProps>(function 
   }, [cart, stage, backFrom, emit, nav]);
 
   const reset = useCallback(() => {
-    setStage('discovery'); setProducts([]); setPage(0); setMinimized(false); setActive(null);
+    setStage('idle'); setProducts([]); setPage(0); setMinimized(false); setActive(null);
     setSelections({}); setShowAll({}); setCart(null); setCheckout(null); setOrder(null);
     setPendingAdd(false); lastRaw.current = null;
   }, []);
 
   const clearResults = useCallback(() => {
     setProducts([]); setPage(0); setMinimized(false);
-    setStage('discovery');
+    setStage('idle');
   }, []);
 
   const matchedVariant = useMemo(() => {
@@ -312,7 +312,7 @@ const LiveCommerce = forwardRef<LiveCommerceHandle, LiveCommerceProps>(function 
 
       {/* ── 1 · DISCOVERY — mobile: 1-row snap carousel · md+: 4-up grid ── */}
       <AnimatePresence>
-        {stage === 'discovery' && !minimized && (
+        {stage === 'discovery' && !minimized && products.length > 0 && (
           <motion.div
             key="shelf" initial={{ y: 24, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 24, opacity: 0 }}
             transition={{ type: 'spring', stiffness: 320, damping: 30 }}

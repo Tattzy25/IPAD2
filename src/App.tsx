@@ -1,10 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { IpadFrame } from './components/IpadFrame';
 import { CollapsedPill } from './components/CollapsedPill';
 import { SettingsModal } from './components/SettingsModal';
 import { useRealtimeAgent } from './hooks/useRealtimeAgent';
-import { routeResult } from './components/liveCommerce/route';
+
+const IPAD_IMAGE_URL =
+  'https://pub-9b2398b039ea4fe288988ee883a0fa48.r2.dev/815ebaa3-90b6-4a70-8f2a-4347dc10d1c3.png';
 
 export default function App() {
   const [isOpen, setIsOpen] = useState(false);
@@ -12,71 +14,17 @@ export default function App() {
 
   // Visualizer colors stored in localStorage for persistence
   const [aiSpeakingColor, setAiSpeakingColor] = useState<string>(() => {
-    return localStorage.getItem('visualizer_ai_speaking_color') || '#ffffff'; // High-gloss pure white
+    return localStorage.getItem('visualizer_ai_speaking_color') || '#d946ef'; // Magenta/Purple from video
   });
   const [listeningColor, setListeningColor] = useState<string>(() => {
-    return localStorage.getItem('visualizer_listening_color') || '#e4e4e7'; // Sleek refined zinc
+    return localStorage.getItem('visualizer_listening_color') || '#22d3ee'; // Cyan from video
   });
   const [idleColor, setIdleColor] = useState<string>(() => {
-    return localStorage.getItem('visualizer_idle_color') || '#52525b'; // Subtle graphite
+    return localStorage.getItem('visualizer_idle_color') || '#facc15'; // Yellow from video
   });
 
-  const [isHoldingConnection, setIsHoldingConnection] = useState(false);
-  const [collections, setCollections] = useState<any[]>([]);
-  const [showProducts, setShowProducts] = useState(false);
-
-  const handleRealtimeEvent = useCallback((event: any) => {
-    if (!event) return;
-
-    // Detect function call output or MCP tool response from search_catalog
-    const output =
-      event.item?.output ||
-      event.output ||
-      event.delta ||
-      event.response?.output?.[0]?.content?.[0]?.text;
-
-    if (output) {
-      const payload = typeof output === 'string' ? JSON.parse(output) : output;
-      const routed = routeResult(payload);
-      if (routed.products && routed.products.length > 0) {
-        setShowProducts(true);
-        setIsHoldingConnection(false);
-      }
-      if (payload.collections && Array.isArray(payload.collections) && payload.collections.length > 0) {
-        setCollections(
-          payload.collections.map((c: any) => ({
-            id: c.id || c.handle || c.name,
-            name: c.title || c.name,
-            image: c.image?.src || c.image || c.featured_image,
-          }))
-        );
-        setIsHoldingConnection(false);
-      }
-    }
-  }, []);
-
-  const { status, activeMode, frequencyData, connect, disconnect, sendMessage } =
-    useRealtimeAgent({ onEvent: handleRealtimeEvent });
-
-  useEffect(() => {
-    if (status === 'idle') {
-      setIsHoldingConnection(false);
-      setCollections([]);
-      setShowProducts(false);
-    }
-  }, [status]);
-
-  const handleConnect = () => {
-    setIsHoldingConnection(true);
-    connect();
-  };
-
-  const handleDisconnect = () => {
-    setIsHoldingConnection(false);
-    setCollections([]);
-    setShowProducts(false);
-    disconnect();
-  };
+  const { status, activeMode, frequencyData, connect, disconnect } =
+    useRealtimeAgent();
 
   const handleAiSpeakingColorChange = (color: string) => {
     setAiSpeakingColor(color);
@@ -92,6 +40,12 @@ export default function App() {
     setIdleColor(color);
     localStorage.setItem('visualizer_idle_color', color);
   };
+
+  // Preload the iPad image on mount for instant zero-latency rendering
+  useEffect(() => {
+    const img = new Image();
+    img.src = IPAD_IMAGE_URL;
+  }, []);
 
   // Allow closing with Escape key
   useEffect(() => {
@@ -116,20 +70,14 @@ export default function App() {
   return (
     <div
       id="app-root"
-      className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999999] pointer-events-none flex flex-col items-center justify-end select-none font-sans"
+      className={`h-screen w-full bg-white text-white flex flex-col items-center select-none overflow-hidden relative font-sans ${
+        isOpen ? 'justify-end pb-3 px-4' : 'justify-end pb-[1px] px-4'
+      }`}
+      onClick={() => {
+        if (isOpen) setIsOpen(false);
+      }}
     >
-      {/* Subtle backdrop when open to dismiss on outside click */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 pointer-events-auto bg-black/10 backdrop-blur-[1px] -z-10"
-          onClick={(e) => {
-            e.stopPropagation();
-            setIsOpen(false);
-          }}
-        />
-      )}
-
-      {/* Morphing high-gloss black container: compact bubble to long status pill */}
+      {/* Morphing high-gloss black iPad container / horizontal bubble */}
       <motion.div
         id="morphing-device-frame"
         layout
@@ -142,30 +90,24 @@ export default function App() {
           if (!isOpen) setIsOpen(true);
         }}
         transition={smoothTransition}
-        className={`pointer-events-auto relative flex items-center justify-between transition-all overflow-hidden bg-black ${
+        className={`relative flex flex-col justify-between transition-colors overflow-hidden ${
           isOpen
-            ? showProducts
-              ? 'w-[min(94vw,760px)] h-[440px] sm:h-[460px] rounded-[36px] cursor-default p-[3px] border border-white/20 shadow-[0_24px_60px_rgba(0,0,0,0.95),inset_0_1px_1.5px_rgba(255,255,255,0.4)] ring-1 ring-white/10'
-              : collections.length > 0
-              ? 'w-[min(94vw,760px)] h-[152px] sm:h-[160px] rounded-[28px] cursor-default p-[3px] border border-white/20 shadow-[0_20px_50px_rgba(0,0,0,0.9),inset_0_1px_1.5px_rgba(255,255,255,0.4)] ring-1 ring-white/10'
-              : 'w-[min(94vw,760px)] h-12 sm:h-13 rounded-full cursor-default p-[3px] border border-white/20 shadow-[0_20px_50px_rgba(0,0,0,0.9),inset_0_1px_1.5px_rgba(255,255,255,0.4)] ring-1 ring-white/10'
-            : 'w-64 h-11 rounded-full cursor-pointer pl-1 pr-3.5 py-1 border border-neutral-800 shadow-[0_12px_24px_-4px_rgba(0,0,0,0.25),0_4px_8px_-2px_rgba(0,0,0,0.15)] ring-1 ring-black/10'
+            ? 'w-[min(94vw,840px)] h-11 sm:h-12 rounded-full cursor-default p-[2px] bezel-shadow ring-1 ring-white/10 bg-black'
+            : 'w-64 h-11 rounded-full cursor-pointer pl-1 pr-3.5 py-1 bg-black border border-neutral-800 shadow-[0_12px_24px_-4px_rgba(0,0,0,0.25),0_4px_8px_-2px_rgba(0,0,0,0.15)] ring-1 ring-black/10'
         }`}
       >
         {/* Specular High-Gloss Diagonal Glass Reflection Overlay */}
         <div
-          className={`absolute inset-0 pointer-events-none gloss-reflection z-30 ${
-            showProducts ? 'rounded-[36px]' : collections.length > 0 ? 'rounded-[28px]' : 'rounded-full'
-          }`}
+          className="absolute inset-0 pointer-events-none rounded-full gloss-reflection z-30"
         />
 
-        {/* High-gloss white ring strip around border */}
-        <div
-          id="pill-inner-gloss-ring"
-          className={`absolute inset-[2px] border border-white/30 pointer-events-none z-20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.5)] ${
-            showProducts ? 'rounded-[34px]' : collections.length > 0 ? 'rounded-[26px]' : 'rounded-full'
-          }`}
-        />
+        {/* High-gloss white ring strip around border from inside of the pill */}
+        {!isOpen && (
+          <div
+            id="pill-inner-gloss-ring"
+            className="absolute inset-[2.5px] rounded-full border-[1.5px] border-white pointer-events-none z-20 shadow-[0_0_6px_rgba(255,255,255,0.85),inset_0_1px_1.5px_rgba(255,255,255,0.95)]"
+          />
+        )}
 
         {/* AnimatePresence for smooth cross-fading inside the morphing frame */}
         <AnimatePresence mode="wait">
@@ -177,15 +119,12 @@ export default function App() {
               status={status}
               activeMode={activeMode}
               frequencyData={frequencyData}
-              onConnect={handleConnect}
-              onDisconnect={handleDisconnect}
+              onConnect={connect}
+              onDisconnect={disconnect}
               onOpenSettings={() => setIsSettingsOpen(true)}
               aiSpeakingColor={aiSpeakingColor}
               listeningColor={listeningColor}
               idleColor={idleColor}
-              isHoldingConnection={isHoldingConnection}
-              collections={collections}
-              showProducts={showProducts}
               onClose={() => setIsOpen(false)}
             />
           )}

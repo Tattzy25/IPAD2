@@ -1,18 +1,11 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { BASE_CONTOUR } from '../components/AudioVisualizer';
-import { discoverStoreDomain } from '../services/discovery';
-import { getBackendUrl } from '../services/backend';
 
 export type AgentStatus = 'idle' | 'connecting' | 'connected' | 'error';
 
 const NUM_BARS = BASE_CONTOUR.length; // 48 bars
 
-interface UseRealtimeAgentOptions {
-  onEvent?: (event: any) => void;
-  onOpen?: () => void;
-}
-
-export function useRealtimeAgent(options: UseRealtimeAgentOptions = {}) {
+export function useRealtimeAgent() {
   const [status, setStatus] = useState<AgentStatus>('idle');
   const [activeMode, setActiveMode] = useState<'speaking' | 'listening' | 'idle'>('idle');
   const [frequencyData, setFrequencyData] = useState<number[]>(() =>
@@ -20,59 +13,17 @@ export function useRealtimeAgent(options: UseRealtimeAgentOptions = {}) {
   );
 
   const pcRef = useRef<RTCPeerConnection | null>(null);
-  const dcRef = useRef<RTCDataChannel | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const userAnalyserRef = useRef<AnalyserNode | null>(null);
   const remoteAnalyserRef = useRef<AnalyserNode | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const audioElementRef = useRef<HTMLAudioElement | null>(null);
-  const fallbackTimerRef = useRef<any>(null);
-
-  const onEventRef = useRef(options.onEvent);
-  onEventRef.current = options.onEvent;
-  const onOpenRef = useRef(options.onOpen);
-  onOpenRef.current = options.onOpen;
-
-  const sendMessage = useCallback((text: string, responseInstructions?: string) => {
-    if (!dcRef.current || dcRef.current.readyState !== 'open') return;
-    dcRef.current.send(
-      JSON.stringify({
-        type: 'conversation.item.create',
-        item: {
-          type: 'message',
-          role: 'user',
-          content: [
-            {
-              type: 'input_text',
-              text,
-            },
-          ],
-        },
-      })
-    );
-    const responsePayload: any = { type: 'response.create' };
-    if (responseInstructions) {
-      responsePayload.response = {
-        instructions: responseInstructions,
-        tool_choice: 'auto',
-      };
-    }
-    dcRef.current.send(JSON.stringify(responsePayload));
-  }, []);
 
   const disconnect = useCallback(() => {
-    if (fallbackTimerRef.current) {
-      clearTimeout(fallbackTimerRef.current);
-      fallbackTimerRef.current = null;
-    }
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
       animationFrameRef.current = null;
-    }
-    if (dcRef.current) {
-      dcRef.current.close();
-      dcRef.current = null;
     }
     if (pcRef.current) {
       pcRef.current.close();
@@ -110,28 +61,15 @@ export function useRealtimeAgent(options: UseRealtimeAgentOptions = {}) {
       return;
     }
 
-    // 2. Obtain client secret with dynamic domain discovered from shopify / ucp
-    const searchParams = new URLSearchParams(window.location.search);
-    const rootEl = document.getElementById('live-commerce-root') || document.getElementById('root');
-    const shopAttr = rootEl?.getAttribute('data-shop-domain');
-    const discoveredDomain = await discoverStoreDomain();
-    const clientDomain =
-      searchParams.get('shop_domain') ||
-      searchParams.get('domain') ||
-      shopAttr ||
-      discoveredDomain;
-
-    const backendUrl = getBackendUrl();
-    const res = await fetch(`${backendUrl}/api/realtime/client_secrets`, {
+    // 2. Obtain client secret
+    const res = await fetch('/api/realtime/client_secrets', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ domain: clientDomain }),
     });
 
     const sessionData = await res.json();
-    const dynamicDomain = sessionData.domain || clientDomain || 'store.anigok.com';
     const ephemeralKey =
       sessionData.client_secret?.value || sessionData.value || sessionData.key;
 
@@ -181,75 +119,25 @@ export function useRealtimeAgent(options: UseRealtimeAgentOptions = {}) {
       remoteSource.connect(remoteAnalyser);
     };
 
-    const dc = pc.createDataChannel('oai-events');
-    dcRef.current = dc;
-
-    dc.onopen = () => {
-      console.log('[OpenAI Realtime DataChannel Opened]');
-      const kickoffPrompt = `DO NOT START TALKING YET THIS IS THE INITIAL KICKOFF FOR YOUR LIVE SESSION START , CALL YOUR MCP TOOL search_catalog WITH ${dynamicDomain} GRAB THE COLLECTIONS AND DISPLAY THE COLLECTIONS ALL OF THEM .. JUST COLLECTION IMAGE AND NAME LABLE. IF THE STORE HAS NO COLLECTIONS, IMMEDIATELY DISPLAY THE FIRST 4 PRODUCTS INSTEAD. AS SOON AS THATS LOADED YOUR SESSION WITH START THE LIVE VOICE....`;
-      const responseInstructions = `DO NOT SPEAK YET. Call your MCP tool search_catalog with shop_domain='${dynamicDomain}' to grab and display all collections. If no collections exist, display the first 4 products instead. Do not generate audio or speech until collections or products are rendered.`;
-
-      dc.send(
-        JSON.stringify({
-          type: 'conversation.item.create',
-          item: {
-            type: 'message',
-            role: 'user',
-            content: [
-              {
-                type: 'input_text',
-                text: kickoffPrompt,
-              },
-            ],
-          },
-        })
-      );
-      dc.send(
-        JSON.stringify({
-          type: 'response.create',
-          response: {
-            instructions: responseInstructions,
-            tool_choice: 'auto',
-          },
-        })
-      );
-
-      // 15-second safety timer so the customer and agent are never held indefinitely
-      fallbackTimerRef.current = setTimeout(() => {
-        if (dc.readyState === 'open') {
-          dc.send(
-            JSON.stringify({
-              type: 'conversation.item.create',
-              item: {
-                type: 'message',
-                role: 'user',
-                content: [
-                  {
-                    type: 'input_text',
-                    text: `Display the first 4 products from ${dynamicDomain} now.`,
-                  },
-                ],
-              },
-            })
-          );
-          dc.send(
-            JSON.stringify({
-              type: 'response.create',
-            })
-          );
+    const handleDataChannelEvent = (event: MessageEvent) => {
+      try {
+        const data = JSON.parse(event.data);
+        const w = window as any;
+        if (w.LiveCommerce?.ingest) {
+          if (data.type === 'response.function_call_arguments.done' || data.type === 'response.output_item.done') {
+            const raw = data.item?.formatted?.output || data.arguments || data;
+            w.LiveCommerce.ingest(raw);
+          } else if (data.products || data.product || data.cart || data.checkout || data.order) {
+            w.LiveCommerce.ingest(data);
+          }
         }
-      }, 15000);
-
-      if (onOpenRef.current) {
-        onOpenRef.current();
-      }
+      } catch (_) {}
     };
 
-    dc.onmessage = (event) => {
-      const msg = JSON.parse(event.data);
-      if (onEventRef.current) {
-        onEventRef.current(msg);
-      }
+    const dc = pc.createDataChannel('oai-events');
+    dc.onmessage = handleDataChannelEvent;
+    pc.ondatachannel = (e) => {
+      e.channel.onmessage = handleDataChannelEvent;
     };
 
     const offer = await pc.createOffer();
@@ -353,6 +241,5 @@ export function useRealtimeAgent(options: UseRealtimeAgentOptions = {}) {
     frequencyData,
     connect,
     disconnect,
-    sendMessage,
   };
 }
